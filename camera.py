@@ -82,33 +82,27 @@ def GetPointerPosition(pointer):
 
 def MoveFruit(imgFlipped, game):
     fruits = game.fruits
-    raspberry = RASPBERRY
 
     if len(fruits) == 0 or random.randint(0, 20) == 0:
-        fruits.append(Fruit(imgFlipped.shape[1], imgFlipped.shape[0], raspberry.shape[1], raspberry.shape[0]))
+        fruits.append(Fruit(imgFlipped.shape[1], imgFlipped.shape[0]))
 
     for fruit in fruits:
-        if fruit.type == 1:
-            imgFlipped, game = MoveSpecificFruit(fruit, imgFlipped, game, BOMB)
-        elif fruit.type == 2:
-            imgFlipped, game = MoveSpecificFruit(fruit, imgFlipped, game, BANANA)
-        else:
-            imgFlipped, game = MoveSpecificFruit(fruit, imgFlipped, game, RASPBERRY)
+        imgFlipped, game = MoveSpecificFruit(fruit, imgFlipped, game)
 
     return game, imgFlipped
 
 
-def MoveSpecificFruit(fruit, imgFlipped, game, fruitType):
+def MoveSpecificFruit(fruit, imgFlipped, game):
     currentTime = int(round(time.time() * 1000))
     fruit.positionX = int(
         round(fruit.startPositionX + ((currentTime - fruit.startTime) / fruit.lifeTime) * (
-                    fruit.endPositionX - fruit.startPositionX)))
+                fruit.endPositionX - fruit.startPositionX)))
     timePassed = currentTime - fruit.startTime
     fruit.positionY = int(
         round(fruit.startPositionY - (fruit.velocity * timePassed - 30 * timePassed * timePassed / 1000) / 1000))
 
-    rotated = imutils.rotate_bound(fruitType, fruit.rotateAngle * timePassed / 1000)
-    # rotated = imutils.rotate(fruitType, fruit.rotateAngle * timePassed / 1000)
+    # rotated = imutils.rotate_bound(fruitType, fruit.rotateAngle * timePassed / 1000)
+    rotated = imutils.rotate(fruit.type, fruit.rotateAngle * timePassed / 1000)
 
     if imgFlipped.shape[0] - rotated.shape[0] > fruit.positionY > 0:
         y1, y2 = fruit.positionY, fruit.positionY + rotated.shape[0]
@@ -133,7 +127,8 @@ def ComputeFruit(game, pointer):
     for fruit in game.fruits:
         if fruit.positionY < pointerY < fruit.positionY + raspberry.shape[
             0] and fruit.positionX < pointerX < fruit.positionX + raspberry.shape[0]:
-            if fruit.type == 1:
+            #TODO change bombbbb
+            if fruit.type == BOMB:
                 return game, MENU
             game.points = game.points + 1
             game.fruits.remove(fruit)
@@ -142,10 +137,19 @@ def ComputeFruit(game, pointer):
 
 
 class Fruit:
-    def __init__(self, imageWidth, imageHeight, fruitWidth, fruitHeight):
+    def __init__(self, imageWidth, imageHeight):
         self.startTime = int(round(time.time() * 1000))
         self.lifeTime = random.randint(5, 10) * 1000
-        self.type = random.randint(1, 4)
+        type = random.randint(1, 4)
+        if type == 1:
+            self.type = BOMB
+            fruitWidth, fruitHeight = BOMB.shape[0], BOMB.shape[1]
+        elif type == 2:
+            self.type = BANANA
+            fruitWidth, fruitHeight = BANANA.shape[0], BANANA.shape[1]
+        else:
+            self.type = RASPBERRY
+            fruitWidth, fruitHeight = RASPBERRY.shape[0], RASPBERRY.shape[1]
         self.positionX = random.randint(0, imageWidth - fruitWidth)
         if self.positionX > imageWidth / 2:
             self.endPositionX = random.randint(0, self.positionX)
@@ -165,7 +169,6 @@ class Fruit:
 class Game:
     def __init__(self):
         self.lifes = 10
-        # TODO count -> points
         self.points = 0
         self.fruits = []
 
@@ -218,7 +221,7 @@ def GenerateGame(imgFlipped, pointer, game):
         for c in range(0, 3):
             imgFlipped[y1:y2, x1:x2, c] = (alpha_s * BURAK[:, :, c] + alpha_l * imgFlipped[y1:y2, x1:x2, c])
 
-    return imgFlipped, mode,  game
+    return imgFlipped, mode, game
 
 
 def ProcessFrame():
