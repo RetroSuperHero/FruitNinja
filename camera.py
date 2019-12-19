@@ -14,8 +14,6 @@ BOMB = cv2.imread("bomb.png", -1)
 BANANA = cv2.imread("banana.png", -1)
 BURAK = cv2.imread("burak.png", -1)
 
-GAME = None
-
 
 def CameraInit():
     print("Initializing camera...")
@@ -82,62 +80,65 @@ def GetPointerPosition(pointer):
     return (cX, cY)
 
 
-def MoveFruit(imgFlipped, fruit):
+def MoveFruit(imgFlipped, game):
+    fruits = game.fruits
     raspberry = RASPBERRY
-    if fruit == [] or random.randint(0, 20) == 0:
-        fruit.append(Fruit(imgFlipped.shape[1], imgFlipped.shape[0], raspberry.shape[1], raspberry.shape[0]))
 
-    for fr in fruit:
-        if fr.type == 1:
-            imgFlipped = MoveSpecificFruit(fr, imgFlipped, fruit, BOMB)
-        elif fr.type == 2:
-            imgFlipped = MoveSpecificFruit(fr, imgFlipped, fruit, BANANA)
+    if len(fruits) == 0 or random.randint(0, 20) == 0:
+        fruits.append(Fruit(imgFlipped.shape[1], imgFlipped.shape[0], raspberry.shape[1], raspberry.shape[0]))
+
+    for fruit in fruits:
+        if fruit.type == 1:
+            imgFlipped, game = MoveSpecificFruit(fruit, imgFlipped, game, BOMB)
+        elif fruit.type == 2:
+            imgFlipped, game = MoveSpecificFruit(fruit, imgFlipped, game, BANANA)
         else:
-            imgFlipped = MoveSpecificFruit(fr, imgFlipped, fruit, RASPBERRY)
+            imgFlipped, game = MoveSpecificFruit(fruit, imgFlipped, game, RASPBERRY)
 
-    return (fruit, imgFlipped)
+    return game, imgFlipped
 
 
-def MoveSpecificFruit(fr, imgFlipped, fruit, fruitType):
+def MoveSpecificFruit(fruit, imgFlipped, game, fruitType):
     currentTime = int(round(time.time() * 1000))
-    fr.positionX = int(
-        round(fr.startPositionX + ((currentTime - fr.startTime) / fr.lifeTime) * (fr.endPositionX - fr.startPositionX)))
-    timePassed = currentTime - fr.startTime
-    fr.positionY = int(
-        round(fr.startPositionY - (fr.velocity * timePassed - 30 * timePassed * timePassed / 1000) / 1000))
+    fruit.positionX = int(
+        round(fruit.startPositionX + ((currentTime - fruit.startTime) / fruit.lifeTime) * (
+                    fruit.endPositionX - fruit.startPositionX)))
+    timePassed = currentTime - fruit.startTime
+    fruit.positionY = int(
+        round(fruit.startPositionY - (fruit.velocity * timePassed - 30 * timePassed * timePassed / 1000) / 1000))
 
-    #     rotated = imutils.rotate_bound(fruit, fr.rotateAngle * timePassed / 1000)
-    rotated = imutils.rotate(fruitType, fr.rotateAngle * timePassed / 1000)
+    rotated = imutils.rotate_bound(fruitType, fruit.rotateAngle * timePassed / 1000)
+    # rotated = imutils.rotate(fruitType, fruit.rotateAngle * timePassed / 1000)
 
-    if imgFlipped.shape[0] - rotated.shape[0] > fr.positionY > 0:
-        y1, y2 = fr.positionY, fr.positionY + rotated.shape[0]
-        x1, x2 = fr.positionX, fr.positionX + rotated.shape[1]
+    if imgFlipped.shape[0] - rotated.shape[0] > fruit.positionY > 0:
+        y1, y2 = fruit.positionY, fruit.positionY + rotated.shape[0]
+        x1, x2 = fruit.positionX, fruit.positionX + rotated.shape[1]
         alpha_s = rotated[:, :, 3] / 255.0
         alpha_l = 1.0 - alpha_s
 
         for c in range(0, 3):
             imgFlipped[y1:y2, x1:x2, c] = (alpha_s * rotated[:, :, c] + alpha_l * imgFlipped[y1:y2, x1:x2, c])
-    elif not (imgFlipped.shape[0] - rotated.shape[0] > fr.positionY > 0) and timePassed > 1000:
-        fruit.remove(fr)
-        if fr.type != 1:
-            global GAME
-            GAME.lifes = GAME.lifes - 1
+    elif not (imgFlipped.shape[0] - rotated.shape[0] > fruit.positionY > 0) and timePassed > 1000:
+        game.fruits.remove(fruit)
+        if fruit.type != 1:
+            game.lifes = game.lifes - 1
 
-    return imgFlipped
+    return imgFlipped, game
 
 
-def ComputeFruit(fruit, pointer, count):
+def ComputeFruit(game, pointer):
     raspberry = RASPBERRY
     (pointerX, pointerY) = GetPointerPosition(pointer)
 
-    for fr in fruit:
-        if fr.positionY < pointerY < fr.positionY + raspberry.shape[0] and fr.positionX < pointerX < fr.positionX + raspberry.shape[0]:
-            if fr.type == 1:
-                return fruit, count, MENU
-            count = count + 1
-            fruit.remove(fr)
+    for fruit in game.fruits:
+        if fruit.positionY < pointerY < fruit.positionY + raspberry.shape[
+            0] and fruit.positionX < pointerX < fruit.positionX + raspberry.shape[0]:
+            if fruit.type == 1:
+                return game, MENU
+            game.points = game.points + 1
+            game.fruits.remove(fruit)
 
-    return fruit, count, SINGLEPLAYER
+    return game, SINGLEPLAYER
 
 
 class Fruit:
@@ -166,6 +167,7 @@ class Game:
         self.lifes = 10
         # TODO count -> points
         self.points = 0
+        self.fruits = []
 
 
 def GenerateMenu(imgFlipped, pointer, chosenMode, startTime):
@@ -180,37 +182,34 @@ def GenerateMenu(imgFlipped, pointer, chosenMode, startTime):
         currentMode = -1
         if 100 < pointerX < 200 and 100 < pointerY < 200:
             currentMode = SINGLEPLAYER
-            global GAME
-            GAME = Game()
         #         if pointerX > 300 and pointerX < 400 and pointerY > 300 and pointerY < 400:
         #             currentMode = MULTIPLAYER
         if currentMode == chosenMode and (startTime + 1000) < int(round(time.time() * 1000)):
-            return imgFlipped, chosenMode, None, None
+            return imgFlipped, chosenMode, None, None, Game()
         elif currentMode != chosenMode and currentMode != -1:
             startTime = int(round(time.time() * 1000))
-            return imgFlipped, mode, currentMode, startTime
+            return imgFlipped, mode, currentMode, startTime, None
         elif currentMode == -1:
-            return imgFlipped, mode, 0, None
+            return imgFlipped, mode, 0, None, None
 
-    return imgFlipped, mode, chosenMode, startTime
+    return imgFlipped, mode, chosenMode, startTime, None
 
 
-def GenerateGame(imgFlipped, pointer, fruit, count):
-    global GAME
+def GenerateGame(imgFlipped, pointer, game):
     mode = SINGLEPLAYER
-    if GAME.lifes == 0:
-        return imgFlipped, MENU, fruit, count
-    (fruit, imgFlipped) = MoveFruit(imgFlipped, fruit)
+    if game.lifes == 0:
+        return imgFlipped, MENU, game
+    (game, imgFlipped) = MoveFruit(imgFlipped, game)
 
     if len(pointer):
         (pointerX, pointerY) = GetPointerPosition(pointer)
-        (fruit, count, mode) = ComputeFruit(fruit, pointer, count)
+        (game, mode) = ComputeFruit(game, pointer)
         cv2.circle(imgFlipped, (pointerX, pointerY), 7, (255, 255, 255), -1)
 
-    cv2.putText(imgFlipped, "Wynik: " + str(count), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255),
+    cv2.putText(imgFlipped, "Wynik: " + str(game.points), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255),
                 lineType=cv2.LINE_AA)
 
-    for i in range(0, GAME.lifes):
+    for i in range(0, game.lifes):
         y1, y2 = 5, 5 + BURAK.shape[0]
         x1, x2 = imgFlipped.shape[1] - i * 40 - BURAK.shape[1], imgFlipped.shape[1] - i * 40
         alpha_s = BURAK[:, :, 3] / 255.0
@@ -219,18 +218,17 @@ def GenerateGame(imgFlipped, pointer, fruit, count):
         for c in range(0, 3):
             imgFlipped[y1:y2, x1:x2, c] = (alpha_s * BURAK[:, :, c] + alpha_l * imgFlipped[y1:y2, x1:x2, c])
 
-    return imgFlipped, mode, fruit, count
+    return imgFlipped, mode,  game
 
 
 def ProcessFrame():
-    count = 0
-    fruit = []
     camObj = CameraInit()
     debug = True
     capture = True
     mode = MENU
     chosenMode = None
     time = None
+    game = None
     while capture:
         img = GetImage(camObj)
         imgFlipped = cv2.flip(img, 1)
@@ -242,10 +240,10 @@ def ProcessFrame():
         pointer = GetPointer(imgMasked, ratio)
 
         if mode == MENU:
-            (gameImage, mode, chosenMode, time) = GenerateMenu(imgFlipped, pointer, chosenMode, time)
+            (gameImage, mode, chosenMode, time, game) = GenerateMenu(imgFlipped, pointer, chosenMode, time)
 
         elif mode == SINGLEPLAYER:
-            (gameImage, mode, fruit, count) = GenerateGame(imgFlipped, pointer, fruit, count)
+            (gameImage, mode, game) = GenerateGame(imgFlipped, pointer, game)
 
         elif mode == MULTIPLAYER:
             capture = False
