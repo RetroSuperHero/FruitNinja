@@ -8,11 +8,13 @@ import imutils
 MENU = 0
 SINGLEPLAYER = 1
 MULTIPLAYER = 2
+EXIT = 3
 
 RASPBERRY = cv2.imread("raspberry.png", -1)
 BOMB = cv2.imread("bomb.png", -1)
 BANANA = cv2.imread("banana.png", -1)
 BURAK = cv2.imread("burak.png", -1)
+LOGO = cv2.imread("logo.png", -1)
 
 
 def CameraInit():
@@ -92,6 +94,16 @@ def MoveFruit(imgFlipped, game):
     return game, imgFlipped
 
 
+def addImageToImage(frameImg, img, positionX, positionY):
+    y1, y2 = positionY, positionY + img.shape[0]
+    x1, x2 = positionX, positionX + img.shape[1]
+    alpha_s = img[:, :, 3] / 255.0
+    alpha_l = 1.0 - alpha_s
+
+    for c in range(0, 3):
+        frameImg[y1:y2, x1:x2, c] = (alpha_s * img[:, :, c] + alpha_l * frameImg[y1:y2, x1:x2, c])
+
+
 def MoveSpecificFruit(fruit, imgFlipped, game):
     currentTime = int(round(time.time() * 1000))
     fruit.positionX = int(
@@ -105,16 +117,10 @@ def MoveSpecificFruit(fruit, imgFlipped, game):
     rotated = imutils.rotate(fruit.type, fruit.rotateAngle * timePassed / 1000)
 
     if imgFlipped.shape[0] - rotated.shape[0] > fruit.positionY > 0:
-        y1, y2 = fruit.positionY, fruit.positionY + rotated.shape[0]
-        x1, x2 = fruit.positionX, fruit.positionX + rotated.shape[1]
-        alpha_s = rotated[:, :, 3] / 255.0
-        alpha_l = 1.0 - alpha_s
-
-        for c in range(0, 3):
-            imgFlipped[y1:y2, x1:x2, c] = (alpha_s * rotated[:, :, c] + alpha_l * imgFlipped[y1:y2, x1:x2, c])
+        addImageToImage(imgFlipped, rotated, fruit.positionX, fruit.positionY)
     elif not (imgFlipped.shape[0] - rotated.shape[0] > fruit.positionY > 0) and timePassed > 1000:
         game.fruits.remove(fruit)
-        if fruit.type != 1:
+        if fruit.typeNo != 1:
             game.lifes = game.lifes - 1
 
     return imgFlipped, game
@@ -127,8 +133,8 @@ def ComputeFruit(game, pointer):
     for fruit in game.fruits:
         if fruit.positionY < pointerY < fruit.positionY + raspberry.shape[
             0] and fruit.positionX < pointerX < fruit.positionX + raspberry.shape[0]:
-            #TODO change bombbbb
-            if fruit.type == BOMB:
+            # TODO change bombbbb
+            if fruit.typeNo == 1:
                 return game, MENU
             game.points = game.points + 1
             game.fruits.remove(fruit)
@@ -140,11 +146,11 @@ class Fruit:
     def __init__(self, imageWidth, imageHeight):
         self.startTime = int(round(time.time() * 1000))
         self.lifeTime = random.randint(5, 10) * 1000
-        type = random.randint(1, 4)
-        if type == 1:
+        self.typeNo = random.randint(1, 4)
+        if self.typeNo == 1:
             self.type = BOMB
             fruitWidth, fruitHeight = BOMB.shape[0], BOMB.shape[1]
-        elif type == 2:
+        elif self.typeNo == 2:
             self.type = BANANA
             fruitWidth, fruitHeight = BANANA.shape[0], BANANA.shape[1]
         else:
@@ -175,18 +181,35 @@ class Game:
 
 def GenerateMenu(imgFlipped, pointer, chosenMode, startTime):
     mode = MENU
-    cv2.rectangle(imgFlipped, (100, 100), (200, 200), (0, 255, 0), -1)
-    cv2.rectangle(imgFlipped, (300, 300), (400, 400), (0, 255, 0), -1)
+    #   SINGLEPLAYER
+    cv2.rectangle(imgFlipped, (50, 50), (200, 200), (66, 17, 187), -1)
+    cv2.putText(imgFlipped, "SINGLE", (70, 120), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+    cv2.putText(imgFlipped, "PLAYER", (68, 150), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+    #   MULTILAYER
+    cv2.rectangle(imgFlipped, (450, 50), (600, 200), (66, 17, 187), -1)
+    cv2.putText(imgFlipped, "MULTI", (480, 120), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+    cv2.putText(imgFlipped, "PLAYER", (468, 150), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+    #   FREE
+    cv2.rectangle(imgFlipped, (50, 300), (200, 450), (66, 17, 187), -1)
+    cv2.putText(imgFlipped, "FREE", (85, 370), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+    cv2.putText(imgFlipped, "PLACE", (75, 400), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+    #   EXIT
+    cv2.rectangle(imgFlipped, (450, 300), (600, 450), (66, 17, 187), -1)
+    cv2.putText(imgFlipped, "EXIT", (495, 385), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+
+    addImageToImage(imgFlipped, LOGO, 175, 100)
 
     if len(pointer):
         (pointerX, pointerY) = GetPointerPosition(pointer)
         cv2.circle(imgFlipped, (pointerX, pointerY), 7, (255, 255, 255), -1)
 
         currentMode = -1
-        if 100 < pointerX < 200 and 100 < pointerY < 200:
+        if 50 < pointerX < 200 and 50 < pointerY < 200:
             currentMode = SINGLEPLAYER
-        #         if pointerX > 300 and pointerX < 400 and pointerY > 300 and pointerY < 400:
-        #             currentMode = MULTIPLAYER
+        if 450 < pointerX < 600 and 50 < pointerY < 200:
+            currentMode = MULTIPLAYER
+        if 450 < pointerX < 600 and 300 < pointerY < 450:
+            currentMode = EXIT
         if currentMode == chosenMode and (startTime + 1000) < int(round(time.time() * 1000)):
             return imgFlipped, chosenMode, None, None, Game()
         elif currentMode != chosenMode and currentMode != -1:
@@ -249,7 +272,10 @@ def ProcessFrame():
             (gameImage, mode, game) = GenerateGame(imgFlipped, pointer, game)
 
         elif mode == MULTIPLAYER:
-            capture = False
+            (gameImage, mode, game) = GenerateGame(imgFlipped, pointer, game)
+
+        elif mode == EXIT:
+            exit(0)
 
         if cv2.waitKey(1) == ord('q'):
             capture = False
