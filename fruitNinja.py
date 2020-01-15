@@ -255,7 +255,7 @@ def GenerateMenu(imgFlipped, pointer, chosenMode, startTime):
     return imgFlipped, mode, chosenMode, startTime, None
 
 
-def GenerateGame(imgFlipped, pointers, game):
+def SingleplayerMode(imgFlipped, pointers, game):
     mode = SINGLEPLAYER
     if game.players[0].lifes == 0:
         return imgFlipped, MENU, game
@@ -342,7 +342,7 @@ def ProcessFrame():
             (gameImage, mode, chosenMode, time, game) = GenerateMenu(imgFlipped, pointer, chosenMode, time)
 
         elif mode == SINGLEPLAYER:
-            (gameImage, mode, game) = GenerateGame(imgFlipped, [pointer], game)
+            (gameImage, mode, game) = SingleplayerMode(imgFlipped, [pointer], game)
 
         elif mode == MULTIPLAYER:
             imgMasked2 = GetMaskedFrame(imgResized, lower_blue, upper_blue)
