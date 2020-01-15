@@ -139,16 +139,18 @@ def ComputeFruit(game, pointers, mode):
                 # TODO change bombbbb
                 if fruit.typeNo == 1:
                     game.players[0].lifes = game.players[0].lifes - 1
-                else:
+                    game.fruits.remove(fruit)
+                elif game.players[0].lifes > 0:
                     game.players[0].points = game.players[0].points + 1
-                game.fruits.remove(fruit)
+                    game.fruits.remove(fruit)
             elif fruit.positionY < pointer2Y < fruit.positionY + raspberry.shape[
                 0] and fruit.positionX < pointer2X < fruit.positionX + raspberry.shape[0]:
                 if fruit.typeNo == 1:
                     game.players[1].lifes = game.players[1].lifes - 1
-                else:
+                    game.fruits.remove(fruit)
+                elif game.players[1].lifes > 0:
                     game.players[1].points = game.players[1].points + 1
-                game.fruits.remove(fruit)
+                    game.fruits.remove(fruit)
     else:
         (pointerX, pointerY) = GetPointerPosition(pointers[0])
 
@@ -277,7 +279,7 @@ def SingleplayerMode(imgFlipped, pointers, game):
 
 def MultiplayerGame(imgFlipped, pointers, game):
     mode = MULTIPLAYER
-    if any(player.lifes == 0 for player in game.players):
+    if all(player.lifes == 0 for player in game.players):
         return imgFlipped, MENU, game
 
     (game, imgFlipped) = MoveFruit(imgFlipped, game)
