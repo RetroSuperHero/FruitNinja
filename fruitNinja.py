@@ -117,7 +117,6 @@ def MoveSpecificFruit(fruit, imgFlipped, game):
     rotated = imutils.rotate(fruit.type, fruit.rotateAngle * timePassed / 1000)
 
     if imgFlipped.shape[0] - rotated.shape[0] > fruit.positionY > 0 and imgFlipped.shape[1] - 50 > fruit.positionX > 0:
-        print("Position", fruit.positionX, " ", fruit.positionY)
         addImageToImage(imgFlipped, rotated, fruit.positionX, fruit.positionY)
     elif not (imgFlipped.shape[0] - rotated.shape[0] > fruit.positionY > 0) and timePassed > 1000:
         game.fruits.remove(fruit)
@@ -247,7 +246,8 @@ def GenerateMenu(imgFlipped, pointer, chosenMode, startTime):
             game = Game()
             game.players.append(Player(0))
             game.players.append(Player(1))
-            return imgFlipped, chosenMode, None, None, game
+        if currentMode == chosenMode == EXIT and (startTime + 1000) < int(round(time.time() * 1000)):
+            exit(0)
         elif currentMode != chosenMode and currentMode != -1:
             startTime = int(round(time.time() * 1000))
             return imgFlipped, mode, currentMode, startTime, None
